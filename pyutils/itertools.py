@@ -97,3 +97,30 @@ def split(iterable: Iterable, sep: any = None, remove: bool = True):
         else:
             result.append(val)
     yield result
+
+def slide(iterable: Iterable, window_size: int):
+    """slide iterable
+
+    Args:
+        iterable: target iterable
+        window_size: number of data retrieved at once
+
+    Returns:
+        iterables: tuple iterable
+
+        input:
+            iterable: [0, 1, 2, 3, 2]
+            window_size: 2
+        
+        output:
+            iterables: [(0, 1), (1, 2), (2, 3), (3, 2)]
+    """
+    vals = iter(iterable)
+    result = collections.deque(
+            (next(vals) for _ in range(window_size)),
+            maxlen=window_size
+    )
+    yield result
+    for val in vals:
+        result.append(val)
+        yield result
