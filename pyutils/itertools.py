@@ -1,4 +1,5 @@
 from typing import Iterable, Callable
+import itertools
 import collections
 import copy
 
@@ -99,7 +100,7 @@ def split(iterable: Iterable, sep: any = None, remove: bool = True):
     yield result
 
 def slide(iterable: Iterable, window_size: int):
-    """slide iterable
+    """expand pairwise
 
     Args:
         iterable: target iterable
@@ -124,3 +125,62 @@ def slide(iterable: Iterable, window_size: int):
     for val in vals:
         result.append(val)
         yield result
+
+
+def multirange(ranges: Iterable):
+    """multirange
+
+    Args:
+        ranges: [(start, stop, step), ...]
+
+    Returns:
+        iterables: tuple iterable
+
+        input:
+            ranges: [2, (1, 4, 2)]
+        
+        output:
+            iterables: [(0, 1), (0, 3), (1, 1), (1, 3)]
+    """
+    return itertools.product(*map(range, ranges))
+
+def looprange(*args):
+    """loop range object
+
+    Args:
+        start: start value
+        stop: stop value
+        step: increase value
+
+    Returns:
+        iterables: iterable
+
+        input:
+            start: 1
+            stop:  6
+            step:  2
+        
+        output:
+            iterables: [1, 3, 5, 3, 1]
+    """
+    if len(args) == 1:
+        start = 0
+        stop = args[0]
+        step = 1
+    elif len(args) == 2:
+        start = args[0]
+        stop = args[1]
+        step = 1
+    elif len(args) == 3:
+        start = args[0]
+        stop = args[1]
+        step = args[2]
+    else:
+        ValueError(f"looprange function is expected 3 arguments, but {len(args)} arguments are deliverd")
+
+    for i in range(start, stop, step):
+        yield i
+
+    gen = iter(range(i, start - 1, -step))
+    next(gen)
+    yield from gen
