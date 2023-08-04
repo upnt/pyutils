@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pyutils"
-version = "1.0.3"
+version = "1.0.4"
 description = "utils for python"
 authors = ["upnt <upnt.github@gmail.com>"]
 readme = "README.md"

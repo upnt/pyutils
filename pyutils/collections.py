@@ -39,8 +39,8 @@ class nddict:
     
     def __setitem__(self, key, value):
         if not len(self._keys) == 1:
-            raise ValueError("{self.values} is not 1 dimentions")
+            raise ValueError(f"{self.values} is not 1 dimentions")
         key_list = self._keys[0]
         if key not in key_list:
-            raise KeyError("{key} is not in {key_list}")
+            raise KeyError(f"{key} is not in {key_list}")
         self._values[key_list.index(key)] = value
