@@ -2,12 +2,19 @@ import numpy as np
 
 
 class nddict:
-    def __init__(self, keys=None, values=None, /, func=None):
+    def __init__(self, keys, values, /, func=None):
         self._keys = keys
         self._values = values
         self._func = lambda: None if func is None else func
+    
+    @staticmethod
+    def from_keys(keys) -> "nddict":
+        result = nddict(None, None)
+        for key in keys:
+            result._add_key(key)
+        return result
 
-    def add_key(self, key_list):
+    def _add_key(self, key_list):
         if self._keys is None:
             self._keys = [key_list]
         else:
@@ -38,9 +45,18 @@ class nddict:
             return nddict(keys, values, func=self._func)
     
     def __setitem__(self, key, value):
-        if not len(self._keys) == 1:
-            raise ValueError(f"{self.values} is not 1 dimentions")
-        key_list = self._keys[0]
-        if key not in key_list:
-            raise KeyError(f"{key} is not in {key_list}")
-        self._values[key_list.index(key)] = value
+        if hasattr(key, '__iter__'):
+            key = tuple(key)
+        else:
+            key = (key,)
+        if len(key) != len(self._keys):
+                raise ValueError(f"Dimentions of {self._values} is smaller than {len(key)}")
+        index = []
+        for k, key_list in zip(key, self._keys):
+            if isinstance(k, slice):
+                index.append(k)
+            else:
+                if k not in key_list:
+                    raise KeyError(f"{k} is not in {key_list}")
+                index.append(key_list.index(k))
+        self._values[tuple(index)] = value
