@@ -9,6 +9,16 @@ def collect_layout(graph: "nx.Graph"):
 
     return pos
 
+def collect_color(graph: "nx.Graph"):
+    pos = []
+    for _, data in graph.nodes(data=True):
+        try:
+            pos.append(data["color"])
+        except:
+            pos.append("blue")
+
+    return pos
+
 
 def collect_labels(graph: "nx.Graph"):
     labels = {}
