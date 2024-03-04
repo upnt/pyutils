@@ -1,5 +1,6 @@
+from collections import defaultdict
+
 import matplotlib
-import matplotlib.pyplot as plt
 import networkx as nx
 
 
@@ -115,12 +116,42 @@ def to_deep_color(color):
     pass
 
 
-if __name__ == "__main__":
-    graph = nx.Graph()
-    graph.add_node(4, weight=-3)
-    graph.add_node(9, weight=4)
-    graph.add_node("15", weight=-7)
-    graph.add_node("2", weight=9)
-    graph.add_node("5", weight=0)
-    for color in node_weight_gradation(graph, 10, "#e41a1c", "#377eb8"):
-        print((color * 255).astype(int))
+def convert_graph_to_expression(graph: nx.Graph, expr_type: type):
+    expr = 0
+    for node in graph.nodes:
+        expr += graph.nodes[node]["weight"] * expr_type(node)
+
+    for edge in graph.edges:
+        expr += graph.edges[edge]["weight"] * expr_type(edge[0]) * expr_type(edge[1])
+
+    return expr
+
+
+def _analize(items, is_detail=True):
+    diags = defaultdict(int)
+    diag_count = 0
+    for item in items:
+        weight = items[item]["weight"]
+        if weight != 0:
+            diags[weight] += 1
+            diag_count += 1
+    if is_detail:
+        key, cnt = "key", "cnt"
+        print(f"{key:>8} {cnt:>8}")
+        for key, cnt in diags.items():
+            print(f"{key:>8} {cnt:>8}")
+
+    return diag_count
+
+
+def check_graph(graph, is_detail=True):
+    print(f"var count: {len(graph.nodes)}")
+    diag_count = _analize(graph.nodes, is_detail)
+    print(f"1-d count: {diag_count}")
+    if is_detail:
+        print()
+    not_diag_count = _analize(graph.edges, is_detail)
+    print(f"2-d count: {not_diag_count}")
+    if is_detail:
+        print()
+    print(f"all count: {diag_count + not_diag_count}")
