@@ -1,7 +1,8 @@
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 import matplotlib
 import networkx as nx
+import numpy as np
 
 
 def graph_minmax(graph: nx.Graph, param: str):
@@ -138,7 +139,7 @@ def _analize(items, is_detail=True):
     if is_detail:
         key, cnt = "key", "cnt"
         print(f"{key:>8} {cnt:>8}")
-        for key, cnt in diags.items():
+        for key, cnt in sorted(diags.items()):
             print(f"{key:>8} {cnt:>8}")
 
     return diag_count
@@ -146,12 +147,22 @@ def _analize(items, is_detail=True):
 
 def check_graph(graph, is_detail=True):
     print(f"var count: {len(graph.nodes)}")
+    print("------------------------------")
     diag_count = _analize(graph.nodes, is_detail)
     print(f"1-d count: {diag_count}")
-    if is_detail:
-        print()
+    print("------------------------------")
     not_diag_count = _analize(graph.edges, is_detail)
     print(f"2-d count: {not_diag_count}")
+    print("------------------------------")
+    degrees = list(dict(nx.degree(graph)).values())
     if is_detail:
-        print()
+        key, cnt = "key", "cnt"
+        print(f"{key:>8} {cnt:>8}")
+        for key, cnt in sorted(Counter(degrees).items()):
+            print(f"{key:>8} {cnt:>8}")
+    print(f"mean degree: {np.mean(degrees)}")
+    print("------------------------------")
+    E = graph.number_of_edges()
+    N = graph.number_of_nodes()
+    print(f"density: {(2 * E) / (N * (N - 1))}")
     print(f"all count: {diag_count + not_diag_count}")
