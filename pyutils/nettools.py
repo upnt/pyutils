@@ -1,4 +1,5 @@
-from collections import defaultdict, Counter
+import math
+from collections import Counter, defaultdict
 
 import matplotlib
 import networkx as nx
@@ -45,6 +46,25 @@ def move_graph(graph: "nx.Graph", displacement: tuple):
     for node in graph.nodes:
         graph.nodes[node]["pos"][0] += displacement[0]
         graph.nodes[node]["pos"][1] += displacement[1]
+
+    return graph
+
+
+def scale_graph(graph: "nx.Graph", scale: tuple):
+    for node in graph.nodes:
+        graph.nodes[node]["pos"][0] *= scale[0]
+        graph.nodes[node]["pos"][1] *= scale[1]
+
+    return graph
+
+
+def rotate_graph(graph: "nx.Graph", degree: int):
+    for node in graph.nodes:
+        x = graph.nodes[node]["pos"][0]
+        y = graph.nodes[node]["pos"][1]
+        rad = math.radians(degree)
+        graph.nodes[node]["pos"][0] = x * math.cos(rad) - y * math.sin(rad)
+        graph.nodes[node]["pos"][1] = x * math.sin(rad) + y * math.cos(rad)
 
     return graph
 
