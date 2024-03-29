@@ -1,12 +1,13 @@
 import math
 from collections import Counter, defaultdict
+from typing import Any
 
 import matplotlib
 import networkx as nx
 import numpy as np
 
 
-def graph_minmax(graph: nx.Graph, param: str):
+def graph_minmax(graph: nx.Graph, param: str) -> tuple[float, float]:
     it = iter(graph.nodes)
     min_value = max_value = graph.nodes[next(it)][param]
 
@@ -20,7 +21,7 @@ def graph_minmax(graph: nx.Graph, param: str):
     return min_value, max_value
 
 
-def lock_value(graph, node, value):
+def lock_value(graph: nx.Graph, node: Any, value: float) -> nx.Graph:
     for neighbor in graph.neighbors(node):
         graph.edges[node, neighbor]["weight"] *= value
 
@@ -29,12 +30,12 @@ def lock_value(graph, node, value):
     return graph
 
 
-def edge(graph, in_node, out_node):
+def edge(graph: nx.Graph, in_node: Any, out_node: Any) -> nx.Graph:
     graph.add_edge(in_node, out_node, weight=-1)
     return graph
 
 
-def fold(graph, fold_node, folded_node):
+def fold(graph: nx.Graph, fold_node: Any, folded_node: Any) -> nx.Graph:
     graph.nodes[fold_node]["weight"] += graph.nodes[folded_node]["weight"]
     for n in nx.all_neighbors(graph, folded_node):
         graph.add_edge(fold_node, n, weight=graph[folded_node][n]["weight"])
@@ -42,7 +43,7 @@ def fold(graph, fold_node, folded_node):
     return graph
 
 
-def move_graph(graph: "nx.Graph", displacement: tuple):
+def move_graph(graph: nx.Graph, displacement: tuple[float, float]) -> nx.Graph:
     for node in graph.nodes:
         graph.nodes[node]["pos"][0] += displacement[0]
         graph.nodes[node]["pos"][1] += displacement[1]
@@ -50,7 +51,7 @@ def move_graph(graph: "nx.Graph", displacement: tuple):
     return graph
 
 
-def scale_graph(graph: "nx.Graph", scale: tuple):
+def scale_graph(graph: nx.Graph, scale: tuple[float, float]) -> nx.Graph:
     for node in graph.nodes:
         graph.nodes[node]["pos"][0] *= scale[0]
         graph.nodes[node]["pos"][1] *= scale[1]
@@ -58,7 +59,7 @@ def scale_graph(graph: "nx.Graph", scale: tuple):
     return graph
 
 
-def rotate_graph(graph: "nx.Graph", degree: int):
+def rotate_graph(graph: nx.Graph, degree: float) -> nx.Graph:
     for node in graph.nodes:
         x = graph.nodes[node]["pos"][0]
         y = graph.nodes[node]["pos"][1]
@@ -69,7 +70,7 @@ def rotate_graph(graph: "nx.Graph", degree: int):
     return graph
 
 
-def collect_layout(graph: "nx.Graph"):
+def collect_layout(graph: nx.Graph) -> dict:
     pos = {}
     for node, data in graph.nodes(data=True):
         pos[node] = data["pos"]
@@ -77,7 +78,7 @@ def collect_layout(graph: "nx.Graph"):
     return pos
 
 
-def collect_color(graph: "nx.Graph"):
+def collect_color(graph: nx.Graph) -> list:
     pos = []
     for _, data in graph.nodes(data=True):
         try:
@@ -88,7 +89,7 @@ def collect_color(graph: "nx.Graph"):
     return pos
 
 
-def node_weight_gradation(graph: "nx.Graph", value, minus_color, plus_color):
+def node_weight_gradation(graph: nx.Graph, value: int, minus_color: int, plus_color: int) -> list:
     minus_colors = fix_gradation(minus_color, value + 1)
     plus_colors = fix_gradation(plus_color, value + 1)
 
@@ -103,7 +104,7 @@ def node_weight_gradation(graph: "nx.Graph", value, minus_color, plus_color):
     return result
 
 
-def fix_gradation(start_color, length):
+def fix_gradation(start_color: int, length: int) -> list:
     rgb = matplotlib.colors.to_rgb(start_color)
     hsv = matplotlib.colors.rgb_to_hsv(rgb)
     hsv[1] = 1
@@ -117,7 +118,7 @@ def fix_gradation(start_color, length):
     return result
 
 
-def collect_labels(graph: "nx.Graph"):
+def collect_labels(graph: nx.Graph) -> dict:
     labels = {}
     for node, data in graph.nodes(data=True):
         labels[node] = data["labels"]
@@ -125,19 +126,15 @@ def collect_labels(graph: "nx.Graph"):
     return labels
 
 
-def collect_node_weight(graph: "nx.Graph"):
+def collect_node_weight(graph: nx.Graph) -> list[float]:
     return [abs(data["weight"]) for _, data in graph.nodes(data=True)]
 
 
-def collect_edge_weight(graph: "nx.Graph"):
+def collect_edge_weight(graph: nx.Graph) -> list[float]:
     return [abs(data["weight"]) for _, _, data in graph.edges(data=True)]
 
 
-def to_deep_color(color):
-    pass
-
-
-def convert_graph_to_expression(graph: nx.Graph, expr_type: type):
+def convert_graph_to_expression(graph: nx.Graph, expr_type: type) -> Any:
     expr = 0
     for node in graph.nodes:
         expr += graph.nodes[node]["weight"] * expr_type(node)
@@ -148,8 +145,8 @@ def convert_graph_to_expression(graph: nx.Graph, expr_type: type):
     return expr
 
 
-def _analize(items, is_detail=True):
-    diags = defaultdict(int)
+def _analize(items: Any, is_detail: bool = True) -> int:
+    diags: defaultdict = defaultdict(int)
     diag_count = 0
     for item in items:
         weight = items[item]["weight"]
@@ -165,7 +162,7 @@ def _analize(items, is_detail=True):
     return diag_count
 
 
-def check_graph(graph, is_detail=True):
+def check_graph(graph: nx.Graph, is_detail: bool = True):
     print(f"var count: {len(graph.nodes)}")
     print("------------------------------")
     diag_count = _analize(graph.nodes, is_detail)
