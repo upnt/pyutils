@@ -3,8 +3,69 @@ from collections import Counter, defaultdict
 from typing import Any
 
 import matplotlib
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
+
+
+class Element:
+    _num_graph = 0
+
+    def __init__(self, node_list: list[str]):
+        self._id = Element._num_graph
+        self.nodes = {key: f"{key}_{Element._num_graph}" for key in node_list}
+        Element._num_graph += 1
+
+    def __hash__(self):
+        return hash((self.__class__, self._id))
+
+
+class ChUGraph(Element):
+    def __init__(self):
+        super().__init__(["x", "y", "z", "u", "s"])
+        x, y, z, u, s = self.nodes.values()
+        self._graph = nx.Graph()
+        self._graph.add_node(x, weight=1, pos=[0, 0], color="green")
+        self._graph.add_node(y, weight=-1, pos=[0, -0.5], color="brown")
+        self._graph.add_node(z, weight=1, pos=[0, -1], color="blue")
+        self._graph.add_node(u, weight=-2, pos=[-0.5, -0.6], color="black")
+        self._graph.add_node(s, weight=0, pos=[-1, -0.5], color="red")
+        self._graph.add_edge(x, y, weight=-1)
+        self._graph.add_edge(x, z, weight=-1)
+        self._graph.add_edge(x, s, weight=2)
+        self._graph.add_edge(x, u, weight=-2)
+        self._graph.add_edge(y, z, weight=-2)
+        self._graph.add_edge(y, s, weight=-2)
+        self._graph.add_edge(y, u, weight=4)
+        self._graph.add_edge(z, s, weight=2)
+        self._graph.add_edge(z, u, weight=-4)
+        self._graph.add_edge(s, u, weight=-4)
+
+
+class Circuit:
+    def __init__(self):
+        self._circuit_graph: nx.DiGraph = nx.DiGraph()
+
+    def append_input_element(self, element: Element):
+        self._circuit_graph.add_node(hash(element), element=element)
+
+    def connect(self, in_element: Element, out_element: Element, in_node: str, out_node: str):
+        self._circuit_graph.add_edge(
+            hash(in_element), hash(out_element), in_node=in_node, out_node=out_node
+        )
+
+
+def ft_u(nbit: int):
+    graph = Circuit()
+
+    before_buf = ChUGraph()
+    graph.append_input_element(before_buf)
+    for _ in range(nbit - 1):
+        buf = ChUGraph()
+        graph.connect(before_buf, buf, "x", "s")
+        before_buf = buf
+
+    return graph
 
 
 def graph_minmax(graph: nx.Graph, param: str) -> tuple[float, float]:
@@ -183,3 +244,9 @@ def check_graph(graph: nx.Graph, is_detail: bool = True):
     N = graph.number_of_nodes()
     print(f"density: {(2 * E) / (N * (N - 1))}")
     print(f"all count: {diag_count + not_diag_count}")
+
+
+if __name__ == "__main__":
+    circuit = ft_u(16)
+    nx.draw(circuit._circuit_graph)
+    plt.show()
