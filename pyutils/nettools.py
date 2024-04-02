@@ -45,14 +45,44 @@ class ChUGraph(Element):
 class Circuit:
     def __init__(self):
         self._circuit_graph: nx.DiGraph = nx.DiGraph()
+        self._roots: list = []
 
     def append_input_element(self, element: Element):
-        self._circuit_graph.add_node(hash(element), element=element)
+        root = hash(element)
+        self._circuit_graph.add_node(root, element=element)
+        self._roots.append(root)
 
     def connect(self, in_element: Element, out_element: Element, in_node: str, out_node: str):
+        self._circuit_graph.add_node(hash(out_element), element=out_element)
         self._circuit_graph.add_edge(
             hash(in_element), hash(out_element), in_node=in_node, out_node=out_node
         )
+
+    def gen_graph(self, root, connect_func):
+        root_elm = self._circuit_graph.nodes[root]["element"]
+        graph = root_elm._graph
+        successors = list(self._circuit_graph.successors(root))
+
+        if len(successors) == 0:
+            return graph
+
+        for node in successors:
+            buf_elm = self._circuit_graph.nodes[node]["element"]
+            buf = self.gen_graph(node, connect_func)
+            in_node = self._circuit_graph.edges[root, node]["in_node"]
+            out_node = self._circuit_graph.edges[root, node]["out_node"]
+            in_node = root_elm.nodes[in_node]
+            out_node = buf_elm.nodes[out_node]
+
+            displacement = graph.nodes[in_node]["pos"]
+            displacement[0] -= buf.nodes[out_node]["pos"][0]
+            displacement[1] -= buf.nodes[out_node]["pos"][1]
+            buf = move_graph(buf, displacement)
+            graph = nx.compose(graph, buf)
+            graph = connect_func(graph, out_node, in_node)
+
+        return graph
+
 
 
 def ft_u(nbit: int):
@@ -248,5 +278,6 @@ def check_graph(graph: nx.Graph, is_detail: bool = True):
 
 if __name__ == "__main__":
     circuit = ft_u(16)
-    nx.draw(circuit._circuit_graph)
+    graph = circuit.gen_graph(circuit._roots[0], fold)
+    nx.draw(graph, pos=collect_layout(graph), node_color=collect_color(graph))
     plt.show()
