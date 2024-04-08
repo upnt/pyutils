@@ -1,6 +1,6 @@
 import math
 from collections import Counter, defaultdict
-from typing import Any
+from typing import Any, Callable
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -12,90 +12,160 @@ class Element:
     _num_graph = 0
 
     def __init__(self, node_list: list[str]):
+        self._graph = nx.Graph()
         self._id = Element._num_graph
-        self.nodes = {key: f"{key}_{Element._num_graph}" for key in node_list}
+        self.nodes = {key: f"{key}_{self._id}" for key in node_list}
+        self._offset = 0
         Element._num_graph += 1
 
     def __hash__(self):
         return hash((self.__class__, self._id))
 
+    def rotate(self, angle: float):
+        self._graph = rotate_graph(self._graph, angle)
 
-class ChUGraph(Element):
-    def __init__(self):
-        super().__init__(["x", "y", "z", "u", "s"])
-        x, y, z, u, s = self.nodes.values()
-        self._graph = nx.Graph()
-        self._graph.add_node(x, weight=1, pos=[0, 0], color="green")
-        self._graph.add_node(y, weight=-1, pos=[0, -0.5], color="brown")
-        self._graph.add_node(z, weight=1, pos=[0, -1], color="blue")
-        self._graph.add_node(u, weight=-2, pos=[-0.5, -0.6], color="black")
-        self._graph.add_node(s, weight=0, pos=[-1, -0.5], color="red")
-        self._graph.add_edge(x, y, weight=-1)
-        self._graph.add_edge(x, z, weight=-1)
-        self._graph.add_edge(x, s, weight=2)
-        self._graph.add_edge(x, u, weight=-2)
-        self._graph.add_edge(y, z, weight=-2)
-        self._graph.add_edge(y, s, weight=-2)
-        self._graph.add_edge(y, u, weight=4)
-        self._graph.add_edge(z, s, weight=2)
-        self._graph.add_edge(z, u, weight=-4)
-        self._graph.add_edge(s, u, weight=-4)
+    def get_variable_dict(self, gen):
+        q = gen.array(nx.number_of_nodes(self._graph))
+        variables = {node: q[i] for i, node in enumerate(self._graph.nodes)}
+        return variables
+
+    def expression(self, variables: dict):
+        expr = convert_graph_to_expression(self._graph, variables)
+        return expr + self._offset
 
 
 class Circuit:
-    def __init__(self):
+    def __init__(self, map_shape: tuple):
         self._circuit_graph: nx.DiGraph = nx.DiGraph()
-        self._roots: list = []
+        self.pos_map: np.ndarray = np.full(map_shape, None)
+        self.input_nodes: dict[str, tuple[Element, str]] = {}
+        self.output_nodes: dict[str, tuple[Element, str]] = {}
+
+    def get_variable_dict(self, gen):
+        nodes = dict(**self.input_nodes, **self.output_nodes)
+        q = gen.array(len(nodes))
+        variables = {node: q[i] for i, node in enumerate(nodes)}
+        return variables
+
+    def expression(self, variables: dict):
+        expr = 0
+        for edge in self._circuit_graph.edges:
+            in_node = self._circuit_graph.edges[edge]["in_node"]
+            out_node = self._circuit_graph.edges[edge]["out_node"]
+            in_node = self._circuit_graph.nodes[edge[0]]["element"].nodes[in_node]
+            out_node = self._circuit_graph.nodes[edge[1]]["element"].nodes[out_node]
+            variables[out_node] = variables[in_node]
+
+        for node in self._circuit_graph.nodes:
+            expr += self._circuit_graph.nodes[node]["element"].expression(variables)
+
+        return expr
+
+    def add_circuit(self, circuit: "Circuit", base: tuple):
+        self._circuit_graph = nx.compose(self._circuit_graph, circuit._circuit_graph)
+        width, height = circuit.pos_map.shape
+        for i in range(width):
+            for j in range(height):
+                self.pos_map[i + base[0]][j + base[1]] = circuit.pos_map[i][j]
 
     def append_input_element(self, element: Element):
         root = hash(element)
         self._circuit_graph.add_node(root, element=element)
-        self._roots.append(root)
 
     def connect(self, in_element: Element, out_element: Element, in_node: str, out_node: str):
-        self._circuit_graph.add_node(hash(out_element), element=out_element)
-        self._circuit_graph.add_edge(
-            hash(in_element), hash(out_element), in_node=in_node, out_node=out_node
-        )
+        in_hash = hash(in_element)
+        out_hash = hash(out_element)
+        if in_hash not in self._circuit_graph:
+            self._circuit_graph.add_node(in_hash, element=in_element)
+        if out_hash not in self._circuit_graph:
+            self._circuit_graph.add_node(out_hash, element=out_element)
+        self._circuit_graph.add_edge(in_hash, out_hash, in_node=in_node, out_node=out_node)
 
-    def gen_graph(self, root, connect_func):
-        root_elm = self._circuit_graph.nodes[root]["element"]
-        graph = root_elm._graph
-        successors = list(self._circuit_graph.successors(root))
+    def connects_from(
+        self,
+        in_circuit: "Circuit",
+        out_circuit: "Circuit",
+        in_nodes: list[str],
+        out_nodes: list[str],
+    ):
+        for in_node, out_node in zip(in_nodes, out_nodes):
+            in_element, in_node = in_circuit.output_nodes[in_node]
+            out_element, out_node = out_circuit.input_nodes[out_node]
+            self.connect(
+                out_element,
+                in_element,
+                out_node,
+                in_node,
+            )
 
-        if len(successors) == 0:
-            return graph
-
-        for node in successors:
-            buf_elm = self._circuit_graph.nodes[node]["element"]
-            buf = self.gen_graph(node, connect_func)
-            in_node = self._circuit_graph.edges[root, node]["in_node"]
-            out_node = self._circuit_graph.edges[root, node]["out_node"]
-            in_node = root_elm.nodes[in_node]
-            out_node = buf_elm.nodes[out_node]
-
-            displacement = graph.nodes[in_node]["pos"]
-            displacement[0] -= buf.nodes[out_node]["pos"][0]
-            displacement[1] -= buf.nodes[out_node]["pos"][1]
-            buf = move_graph(buf, displacement)
-            graph = nx.compose(graph, buf)
-            graph = connect_func(graph, out_node, in_node)
-
-        return graph
+    def rot90(self, k: int = 1):
+        self.pos_map = np.rot90(self.pos_map, k, axes=(1, 0))
 
 
+def generate_graph(
+    circuit: Circuit, connect_func: Callable, scale: tuple = (1, 1), gap: tuple = (0.5, 0.5)
+) -> nx.Graph:
+    graph = nx.Graph()
+    width, height = circuit.pos_map.shape
+    for i in range(width):
+        for j in range(height):
+            node = circuit.pos_map[i][j]
+            if node is not None:
+                buf = circuit._circuit_graph.nodes[hash(node)]["element"]._graph
+                buf = move_graph(buf, (scale[0] * i * (1 + gap[0]), scale[1] * -j * (1 + gap[1])))
+                graph = nx.compose(graph, buf)
 
-def ft_u(nbit: int):
-    graph = Circuit()
-
-    before_buf = ChUGraph()
-    graph.append_input_element(before_buf)
-    for _ in range(nbit - 1):
-        buf = ChUGraph()
-        graph.connect(before_buf, buf, "x", "s")
-        before_buf = buf
+    for edge in circuit._circuit_graph.edges:
+        in_node = circuit._circuit_graph.edges[edge]["in_node"]
+        out_node = circuit._circuit_graph.edges[edge]["out_node"]
+        in_node = circuit._circuit_graph.nodes[edge[0]]["element"].nodes[in_node]
+        out_node = circuit._circuit_graph.nodes[edge[1]]["element"].nodes[out_node]
+        connect_func(graph, in_node, out_node)
 
     return graph
+
+
+def generate_expression(circuit: Circuit, connect_type: str):
+    width, height = circuit.pos_map.shape
+    result = 0
+    num_nodes = 0
+    for i in range(width):
+        for j in range(height):
+            node = circuit.pos_map[i][j]
+            if node is not None:
+                buf = circuit._circuit_graph.nodes[hash(node)]["element"]._graph
+                num_nodes += nx.number_of_nodes(buf)
+
+    gen = BinarySymbolGenerator()
+    q = gen.array(num_nodes)
+
+    for i in range(width):
+        for j in range(height):
+            node = circuit.pos_map[i][j]
+            if node is not None:
+                buf = circuit._circuit_graph.nodes[hash(node)]["element"]._graph
+                result += convert_graph_to_expression(buf, lambda x: q[i][j][x])
+
+    for edge in circuit._circuit_graph.edges:
+        in_node = circuit._circuit_graph.edges[edge]["in_node"]
+        out_node = circuit._circuit_graph.edges[edge]["out_node"]
+        in_node = circuit._circuit_graph.nodes[edge[0]]["element"].nodes[in_node]
+        out_node = circuit._circuit_graph.nodes[edge[1]]["element"].nodes[out_node]
+        out_graph = circuit._circuit_graph.nodes[edge[1]]["element"]._graph
+        if connect_type == "fold":
+            weight = out_graph.nodes[out_node]["weight"]
+            result -= weight * expr_type(out_node)
+            result += weight * expr_type(in_node)
+            for n in nx.all_neighbors(out_graph, out_node):
+                weight = out_graph.edges[out_node, n]["weight"]
+                result -= weight * expr_type(out_node) * expr_type(n)
+                result += weight * expr_type(in_node) * expr_type(n)
+        elif connect_type == "connect":
+            result += -expr_type(in_node) * expr_type(out_node)
+        else:
+            raise ValueError
+
+    return result
 
 
 def graph_minmax(graph: nx.Graph, param: str) -> tuple[float, float]:
@@ -117,6 +187,14 @@ def lock_value(graph: nx.Graph, node: Any, value: float) -> nx.Graph:
         graph.edges[node, neighbor]["weight"] *= value
 
     graph.remove_node(node)
+
+    return graph
+
+
+def all_lock(graph: nx.Graph):
+    for node in list(graph.nodes):
+        if "value" in graph.nodes[node]:
+            graph = lock_value(graph, node, graph.nodes[node]["value"])
 
     return graph
 
@@ -164,8 +242,10 @@ def rotate_graph(graph: nx.Graph, degree: float) -> nx.Graph:
 def collect_layout(graph: nx.Graph) -> dict:
     pos = {}
     for node, data in graph.nodes(data=True):
-        pos[node] = data["pos"]
-
+        try:
+            pos[node] = data["pos"]
+        except KeyError as e:
+            raise KeyError(f"node {node} has no 'pos'") from e
     return pos
 
 
@@ -225,13 +305,13 @@ def collect_edge_weight(graph: nx.Graph) -> list[float]:
     return [abs(data["weight"]) for _, _, data in graph.edges(data=True)]
 
 
-def convert_graph_to_expression(graph: nx.Graph, expr_type: type) -> Any:
+def convert_graph_to_expression(graph: nx.Graph, variables: dict) -> Any:
     expr = 0
     for node in graph.nodes:
-        expr += graph.nodes[node]["weight"] * expr_type(node)
+        expr += graph.nodes[node]["weight"] * variables[node]
 
     for edge in graph.edges:
-        expr += graph.edges[edge]["weight"] * expr_type(edge[0]) * expr_type(edge[1])
+        expr += graph.edges[edge]["weight"] * variables[edge[0]] * variables[edge[1]]
 
     return expr
 
@@ -274,10 +354,3 @@ def check_graph(graph: nx.Graph, is_detail: bool = True):
     N = graph.number_of_nodes()
     print(f"density: {(2 * E) / (N * (N - 1))}")
     print(f"all count: {diag_count + not_diag_count}")
-
-
-if __name__ == "__main__":
-    circuit = ft_u(16)
-    graph = circuit.gen_graph(circuit._roots[0], fold)
-    nx.draw(graph, pos=collect_layout(graph), node_color=collect_color(graph))
-    plt.show()
