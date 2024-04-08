@@ -26,7 +26,12 @@ class Element:
 
     def get_variable_dict(self, gen):
         q = gen.array(nx.number_of_nodes(self._graph))
-        variables = {node: q[i] for i, node in enumerate(self._graph.nodes)}
+        variables = {}
+        for i, node in enumerate(self._graph.nodes):
+            if "value" in self._graph.nodes[node]:
+                variables[node] = self._graph.nodes[node]["value"]
+            else:
+                variables[node] = q[i]
         return variables
 
     def expression(self, variables: dict):
@@ -38,39 +43,57 @@ class Circuit:
     def __init__(self, map_shape: tuple):
         self._circuit_graph: nx.DiGraph = nx.DiGraph()
         self.pos_map: np.ndarray = np.full(map_shape, None)
-        self.input_nodes: dict[str, tuple[Element, str]] = {}
-        self.output_nodes: dict[str, tuple[Element, str]] = {}
+        self.nodes: dict[str, str] = {}
+        self.elems: dict[str, Element] = {}
+        self._variable_funcs: dict[Element, Callable] = {}
 
     def get_variable_dict(self, gen):
-        nodes = dict(**self.input_nodes, **self.output_nodes)
-        q = gen.array(len(nodes))
-        variables = {node: q[i] for i, node in enumerate(nodes)}
-        return variables
+        return {elm: func(gen) for elm, func in self._variable_funcs.items()}
 
     def expression(self, variables: dict):
-        expr = 0
         for edge in self._circuit_graph.edges:
-            in_node = self._circuit_graph.edges[edge]["in_node"]
-            out_node = self._circuit_graph.edges[edge]["out_node"]
-            in_node = self._circuit_graph.nodes[edge[0]]["element"].nodes[in_node]
-            out_node = self._circuit_graph.nodes[edge[1]]["element"].nodes[out_node]
-            variables[out_node] = variables[in_node]
+            in_element = self._circuit_graph.nodes[edge[0]]["element"]
+            out_element = self._circuit_graph.nodes[edge[1]]["element"]
+            print(self._circuit_graph.edges[edge]["in_node"])
+            print(self._circuit_graph.edges[edge]["out_node"])
+            in_node = in_element.nodes[self._circuit_graph.edges[edge]["in_node"]]
+            out_node = out_element.nodes[self._circuit_graph.edges[edge]["out_node"]]
+            variables[out_element][out_node] = variables[in_element][in_node]
 
+        expr = 0
         for node in self._circuit_graph.nodes:
-            expr += self._circuit_graph.nodes[node]["element"].expression(variables)
+            element = self._circuit_graph.nodes[node]["element"]
+            buf = element.expression(variables[element])
+            # print(variables[element])
+            # print(buf)
+            expr += buf
 
         return expr
 
     def add_circuit(self, circuit: "Circuit", base: tuple):
         self._circuit_graph = nx.compose(self._circuit_graph, circuit._circuit_graph)
+        self._variable_funcs.update(circuit._variable_funcs)
         width, height = circuit.pos_map.shape
         for i in range(width):
             for j in range(height):
                 self.pos_map[i + base[0]][j + base[1]] = circuit.pos_map[i][j]
 
+    def save_to_nodes(self, element, mapping: dict):
+        if isinstance(element, Element):
+            for key, before in mapping.items():
+                self.nodes[key] = element.nodes[before]
+                self.elems[key] = element
+        elif isinstance(element, Circuit):
+            for key, before in mapping.items():
+                self.nodes[key] = element.nodes[before]
+                self.elems[key] = element.elems[before]
+        else:
+            raise ValueError
+
     def append_input_element(self, element: Element):
         root = hash(element)
         self._circuit_graph.add_node(root, element=element)
+        self._variable_funcs[element] = element.get_variable_dict
 
     def connect(self, in_element: Element, out_element: Element, in_node: str, out_node: str):
         in_hash = hash(in_element)
@@ -89,8 +112,11 @@ class Circuit:
         out_nodes: list[str],
     ):
         for in_node, out_node in zip(in_nodes, out_nodes):
-            in_element, in_node = in_circuit.output_nodes[in_node]
-            out_element, out_node = out_circuit.input_nodes[out_node]
+            in_element = in_circuit.elems[in_node]
+            in_node = in_circuit.nodes[in_node]
+            print(in_circuit.nodes)
+            out_element = out_circuit.elems[out_node]
+            out_node = out_circuit.nodes[out_node]
             self.connect(
                 out_element,
                 in_element,
@@ -308,6 +334,8 @@ def collect_edge_weight(graph: nx.Graph) -> list[float]:
 def convert_graph_to_expression(graph: nx.Graph, variables: dict) -> Any:
     expr = 0
     for node in graph.nodes:
+        if "value" in graph.nodes[node]:
+            variables[node] = graph.nodes[node]["value"]
         expr += graph.nodes[node]["weight"] * variables[node]
 
     for edge in graph.edges:
