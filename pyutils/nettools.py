@@ -1,5 +1,6 @@
 import math
 from collections import Counter, defaultdict
+from pprint import pprint
 from typing import Any, Callable
 
 import matplotlib
@@ -54,10 +55,8 @@ class Circuit:
         for edge in self._circuit_graph.edges:
             in_element = self._circuit_graph.nodes[edge[0]]["element"]
             out_element = self._circuit_graph.nodes[edge[1]]["element"]
-            print(self._circuit_graph.edges[edge]["in_node"])
-            print(self._circuit_graph.edges[edge]["out_node"])
-            in_node = in_element.nodes[self._circuit_graph.edges[edge]["in_node"]]
-            out_node = out_element.nodes[self._circuit_graph.edges[edge]["out_node"]]
+            in_node = self._circuit_graph.edges[edge]["in_node"]
+            out_node = self._circuit_graph.edges[edge]["out_node"]
             variables[out_element][out_node] = variables[in_element][in_node]
 
         expr = 0
@@ -114,7 +113,6 @@ class Circuit:
         for in_node, out_node in zip(in_nodes, out_nodes):
             in_element = in_circuit.elems[in_node]
             in_node = in_circuit.nodes[in_node]
-            print(in_circuit.nodes)
             out_element = out_circuit.elems[out_node]
             out_node = out_circuit.nodes[out_node]
             self.connect(
@@ -144,8 +142,6 @@ def generate_graph(
     for edge in circuit._circuit_graph.edges:
         in_node = circuit._circuit_graph.edges[edge]["in_node"]
         out_node = circuit._circuit_graph.edges[edge]["out_node"]
-        in_node = circuit._circuit_graph.nodes[edge[0]]["element"].nodes[in_node]
-        out_node = circuit._circuit_graph.nodes[edge[1]]["element"].nodes[out_node]
         connect_func(graph, in_node, out_node)
 
     return graph
