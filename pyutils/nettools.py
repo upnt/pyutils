@@ -57,6 +57,12 @@ class Circuit:
             out_element = self._circuit_graph.nodes[edge[1]]["element"]
             in_node = self._circuit_graph.edges[edge]["in_node"]
             out_node = self._circuit_graph.edges[edge]["out_node"]
+            if out_element not in variables:
+                print(f"key lengths: {len(variables.keys())}")
+                raise KeyError(f"variables has no attribute out_element {out_element}")
+            elif in_element not in variables:
+                print(f"key lengths: {len(variables.keys())}")
+                raise KeyError(f"variables has no attribute in_element {in_element}")
             variables[out_element][out_node] = variables[in_element][in_node]
 
         expr = 0
