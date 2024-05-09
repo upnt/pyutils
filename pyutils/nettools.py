@@ -99,8 +99,10 @@ class Circuit:
         out_hash = hash(out_element)
         if in_hash not in self._circuit_graph:
             self._circuit_graph.add_node(in_hash, element=in_element)
+            self._variable_funcs[in_element] = in_element.get_variable_dict
         if out_hash not in self._circuit_graph:
             self._circuit_graph.add_node(out_hash, element=out_element)
+            self._variable_funcs[out_element] = out_element.get_variable_dict
         self._circuit_graph.add_edge(in_hash, out_hash, in_node=in_node, out_node=out_node)
 
     def connects_from(
