@@ -1,15 +1,16 @@
 [tool.poetry]
 name = "pyutils"
-version = "1.1.0"
+version = "2.0.0"
 description = "utils for python"
 authors = ["upnt <upnt.github@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.12"
+python = ">=3.10,<3.12"
 numpy = "^1.24.2"
 networkx = "^3.2.1"
 matplotlib = "^3.8.2"
+sphinx = "^8.0.2"
 
 [tool.poetry.group.dev.dependencies]
 black = "^22.10.0"

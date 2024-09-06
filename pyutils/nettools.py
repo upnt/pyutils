@@ -1,43 +1,58 @@
 import math
 from collections import Counter, defaultdict
 from pprint import pprint
-from typing import Any, Callable
+from typing import Any, Callable, Dict, Self, Tuple
 
 import matplotlib
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
+import abc
 
-class Element:
-    _num_graph = 0
+class GateGraphFactory():
+    def __init__(self: Self, node_dict: Dict[str, Dict[str, Any]], edge_dict: Dict[Tuple[str, str], Dict[str, Any]], offset: int):
+        self._node_dict = node_dict
+        self._edge_dict = edge_dict
+        self._offset = offset
+        self._id = 0
 
-    def __init__(self, node_list: list[str]):
-        self._graph = nx.Graph()
-        self._id = Element._num_graph
-        self.nodes = {key: f"{key}_{self._id}" for key in node_list}
-        self._offset = 0
-        Element._num_graph += 1
+    @staticmethod
+    def from_sympy() -> "GateGraphFactory":
+        node_dict = {"a": {"a": 0}}
+        edge_dict = {("a", "b"): {"a": 0}}
+        offset = 0
+        return GateGraphFactory(node_dict, edge_dict, offset)
+        
 
-    def __hash__(self):
-        return hash((self.__class__, self._id))
+    def generate(self: Self) -> nx.Graph:
+        graph = nx.Graph()
+        for key, val in self._node_dict.items():
+            gkey = f"{key}_{self._id}"
+            if gkey in graph.nodes:
+                val['weight'] += graph.nodes[gkey]["weight"]
+            graph.add_node(gkey, weight=val["weight"], pos=val["pos"], color=val["color"])
+        for key, val in self._edge_dict.items():
+            gkey = (f"{key[0]}_{self._id}", f"{key[1]}_{self._id}")
+            if gkey in graph.edges:
+                val['weight'] += graph.edges[gkey]["weight"]
+            graph.add_edge(*gkey, weight=val["weight"])
+        self._id += 1
+        return graph
 
-    def rotate(self, angle: float):
-        self._graph = rotate_graph(self._graph, angle)
-
-    def get_variable_dict(self, gen):
-        q = gen.array(nx.number_of_nodes(self._graph))
-        variables = {}
-        for i, node in enumerate(self._graph.nodes):
-            if "value" in self._graph.nodes[node]:
-                variables[node] = self._graph.nodes[node]["value"]
-            else:
-                variables[node] = q[i]
-        return variables
-
-    def expression(self, variables: dict):
-        expr = convert_graph_to_expression(self._graph, variables)
-        return expr + self._offset
+        #     def get_variable_dict(self, gen):
+        #         q = gen.array(nx.number_of_nodes(self._graph))
+        #         variables = {}
+        #         for i, node in enumerate(self._graph.nodes):
+        #             if "value" in self._graph.nodes[node]:
+        #                 variables[node] = self._graph.nodes[node]["value"]
+        #             else:
+        #                 variables[node] = q[i]
+        #         return variables
+        # 
+        #     def expression(self, variables: dict):
+        #         expr = convert_graph_to_expression(self._graph, variables)
+        #         return expr + self._offset
 
 
 class Circuit:
@@ -242,7 +257,7 @@ def fold(graph: nx.Graph, fold_node: Any, folded_node: Any) -> nx.Graph:
     return graph
 
 
-def move_graph(graph: nx.Graph, displacement: tuple[float, float]) -> nx.Graph:
+def move_graph(graph: nx.Graph, displacement: Tuple[float, float]) -> nx.Graph:
     for node in graph.nodes:
         graph.nodes[node]["pos"][0] += displacement[0]
         graph.nodes[node]["pos"][1] += displacement[1]
