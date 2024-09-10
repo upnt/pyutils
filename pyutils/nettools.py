@@ -9,20 +9,32 @@ import networkx as nx
 import numpy as np
 
 
-class Circuit:
+class GateGraph:
     """
-    論理ゲートの接続関係を管理するクラス
+    論理ゲート用QUBO/Isingモデル
     """
 
     def __init__(
-        self: "Circuit", in_mapping: Dict[str, str], out_mapping: Dict[str, str], graph: nx.Graph
+        self: "GateGraph", in_mapping: Dict[str, str], out_mapping: Dict[str, str], graph: nx.Graph
     ):
         self._in_mapping = in_mapping
         self._out_mapping = out_mapping
         self._graph = graph
-        self._connection: Dict[str, List[Tuple["Circuit", str]]] = {key: [] for key in out_mapping}
+        self._connection: Dict[str, List[Tuple["GateGraph", str]]] = {
+            key: [] for key in out_mapping
+        }
 
-    def set_input(self: "Circuit", key: str, value: int) -> None:
+    def get_graph(self: "GateGraph") -> nx.Graph:
+        """keyの値をvalueで固定する. 入力keyのみ設定可能
+
+        Args:
+
+        Returns:
+            nx.Graph: 内部状態graphを出力する
+        """
+        return self._graph
+
+    def bind_input(self: "GateGraph", key: str, value: int) -> None:
         """keyの値をvalueで固定する. 入力keyのみ設定可能
 
         Args:
@@ -34,19 +46,23 @@ class Circuit:
 
         Examples:
             >>> G = nx.Graph({"a0": {"weight": 0}, "b0": {"weight": 0}, "s0": {"weight": 0}})
-            >>> circuit = Circuit({"a": "a0", "b": "b0"}, {"s": "s0"}, G)
-            >>> circuit.set_value("a", 4)
-            >>> print(circuit._graphs)
+            >>> gate = Gate({"a": "a0", "b": "b0"}, {"s": "s0"}, G)
+            >>> gate.set_value("a", 4)
+            >>> print(circuit.get_graph)
             nx.Graph({"a0": {"weight": 0, "value": 4}, "b0": {"weight": 0}, "s0": {"weight": 0}})
         """
-        self._graph.nodes[self._in_mapping[key]]["value"] = value
+        try:
+            self._graph.nodes[self._in_mapping[key]]["value"] = value
+        except KeyError as e:
+            print(f"current in_mapping: {self._in_mapping}")
+            raise e
         del self._in_mapping[key]
 
-    def set_output(self: "Circuit", key: str, value: int) -> None:
+    def bind_output(self: "GateGraph", key: str, value: int) -> None:
         """keyの値をvalueで固定する. 出力keyのみ設定可能
 
         Args:
-            key (str): 入力するキー
+            key (str): 出力キー
             value (int): 固定したい値
 
         Returns:
@@ -54,39 +70,59 @@ class Circuit:
 
         Examples:
             >>> G = nx.Graph({"a0": {"weight": 0}, "b0": {"weight": 0}, "s0": {"weight": 0}})
-            >>> circuit = Circuit({"a": "a0", "b": "b0"}, {"s": "s0"}, G)
-            >>> circuit.set_value("s", 4)
-            >>> print(circuit._graphs)
+            >>> gate = Gate({"a": "a0", "b": "b0"}, {"s": "s0"}, G)
+            >>> gate.set_value("s", 4)
+            >>> print(gate.get_graph())
             nx.Graph({"a0": {"weight": 0}, "b0": {"weight": 0}, "s0": {"weight": 0, "value": 4}})
         """
-        self._graph.nodes[self._out_mapping[key]]["value"] = value
+        try:
+            self._graph.nodes[self._out_mapping[key]]["value"] = value
+        except KeyError as e:
+            print(f"current out_mapping: {self._out_mapping}")
+            raise e
         del self._out_mapping[key]
 
-    def connect(self: "Circuit", circuit: "Circuit", from_key: str, to_key: str):
-        """回路を接続する
+    def get_input(self: "GateGraph", key: str) -> str:
+        """入力keyのノード名を取得する
 
         Args:
-            from_key (str): 接続元キー. 出力キーのみ受け付ける
-            to_key (str): 接続先キー. 入力キーのみ受け付ける
+            key (str): 入力キー
 
         Returns:
-            None: 内部状態connectionに接続先の回路を記録する. 戻り値はNone
+            str: 内部状態graphのkeyに対応するノード名
 
         Examples:
             >>> G = nx.Graph({"a0": {"weight": 0}, "b0": {"weight": 0}, "s0": {"weight": 0}})
-            >>> circuit0 = Circuit({"a": "a0", "b": "b0"}, {"s": "s0"}, G)
-            >>> G = nx.Graph({"a1": {"weight": 0}, "b1": {"weight": 0}, "s1": {"weight": 0}})
-            >>> circuit1 = Circuit({"a": "a1", "b": "b1"}, {"s": "s1"}, G)
-            >>> G = nx.Graph({"a2": {"weight": 0}, "b2": {"weight": 0}, "s2": {"weight": 0}})
-            >>> circuit2 = Circuit({"a": "a2", "b": "b2"}, {"s": "s2"}, G)
-            >>> circuit0.connect(circuit2, "s", "a")
-            >>> print(circuit._connection)
-            {"s0": [
-                (Circuit({"a": "a1", "b": "b1"}, {"s": "s1"}, G), "a"),
-                (Circuit({"a": "a2", "b": "b2"}, {"s": "s2"}, G), "b")
-            ]}
+            >>> gate = GateGraph({"a": "a0", "b": "b0"}, {"s": "s0"}, G)
+            >>> gate.get_input("a")
+            "a0"
         """
-        self._connection[from_key].append((circuit, to_key))
+        try:
+            return self._in_mapping[key]
+        except KeyError as e:
+            print(f"current in_mapping: {self._in_mapping}")
+            raise e
+
+    def get_output(self: "GateGraph", key: str) -> str:
+        """出力keyのノード名を取得する
+
+        Args:
+            key (str): 出力キー
+
+        Returns:
+            str: 内部状態graphのkeyに対応するノード名
+
+        Examples:
+            >>> G = nx.Graph({"a0": {"weight": 0}, "b0": {"weight": 0}, "s0": {"weight": 0}})
+            >>> gate = GateGraph({"a": "a0", "b": "b0"}, {"s": "s0"}, G)
+            >>> gate.get_output("s")
+            "s0"
+        """
+        try:
+            return self._out_mapping[key]
+        except KeyError as e:
+            print(f"current out_mapping: {self._out_mapping}")
+            raise e
 
     # class Circuit:
     #     def __init__(self: "Circuit"):
@@ -182,25 +218,41 @@ class Circuit:
 
 
 class GateGraphFactory:
-    """
-    論理ゲート用Ising/QUBOモデルのファクトリクラス
+    """論理ゲート用Ising/QUBOモデルのファクトリクラス
+
+    GateGraphをidによってナンバリングすることで同一のキーを持つグラフの生成を抑制する
     """
 
     def __init__(
         self: "GateGraphFactory",
         node_dict: Dict[str, Dict[str, Any]],
         edge_dict: Dict[Tuple[str, str], Dict[str, Any]],
+        in_nodes: List[str],
+        out_nodes: List[str],
         offset: float,
     ):
         self._node_dict = node_dict
         self._edge_dict = edge_dict
+        self._in_nodes = in_nodes
+        self._out_nodes = out_nodes
         self._offset = offset
         self._id = 0
 
     @staticmethod
-    def from_poly(poly: amplify.Poly) -> "GateGraphFactory":
-        """
-        Amplifyで定義された二次式からファクトリを生成する
+    def from_poly(
+        poly: amplify.Poly, in_vars: List[amplify.Variable], out_vars: List[amplify.Variable]
+    ) -> "GateGraphFactory":
+        """Amplify.Polyによる二次式に基づいたファクトリ生成
+
+        Examples:
+            >>> gen = VariableGenerator()
+            >>> x = gen.scalar("Binary", name="x")
+            >>> y = gen.scalar("Binary", name="y")
+            >>> z = gen.scalar("Binary", name="z")
+            >>> s = gen.scalar("Binary", name="s")
+            >>> poly = x * y + x * z + y * z - 2 * s * (x + y + z) + 3
+            >>> factory = GateGraphFactory.from_poly(poly, [x, y, z], [s])
+            >>> gate = factory.generate()
         """
         if poly.degree() > 2:
             raise ValueError(f"The degree of poly is higher than 2 (degree: {poly.degree()})")
@@ -208,6 +260,12 @@ class GateGraphFactory:
         node_dict: Dict[str, Dict[str, Any]] = {}
         edge_dict: Dict[Tuple[str, str], Dict[str, Any]] = {}
         offset = 0.0
+        for var in poly.variables:
+            node_dict[var.name] = {
+                "weight": 0,
+                "pos": [0, 0],
+                "color": "blue",
+            }
         for var, coeff in poly:
             match len(var):
                 case 0:
@@ -215,7 +273,7 @@ class GateGraphFactory:
                 case 1:
                     node_dict[var[0].name] = {
                         "weight": coeff,
-                        "pos": [0, 0],
+                        "pos": (0, 0),
                         "color": "blue",
                     }
                 case 2:
@@ -223,18 +281,21 @@ class GateGraphFactory:
                 case _:
                     raise ValueError(f"poly is higher degree (degree: {poly.degree()})")
 
+        n = len(node_dict)
         pos_list = [
-            [(math.cos(2 * math.pi / i) - 1) / 2, (math.sin(2 * math.pi / i) - 1) / 2]
-            for i in range(len(node_dict))
+            ((math.cos((i / n) * 2 * math.pi) - 1) / 2, (math.sin((i / n) * 2 * math.pi) - 1) / 2)
+            for i in range(n)
         ]
         for pos, (key, val) in zip(pos_list, node_dict.items()):
             val["pos"] = pos
             node_dict[key] = val
-        return GateGraphFactory(node_dict, edge_dict, offset)
+        in_nodes = [var.name for var in in_vars]
+        out_nodes = [var.name for var in out_vars]
+        return GateGraphFactory(node_dict, edge_dict, in_nodes, out_nodes, offset)
 
-    def generate(self: "GateGraphFactory") -> Circuit:
+    def generate(self: "GateGraphFactory") -> GateGraph:
         """
-        __init__で与えられた情報からCircuitインスタンスを生成する
+        __init__で与えられた情報からGateGraphインスタンスを生成する
         """
         graph = nx.Graph()
         mapping: Dict[str, str] = {}
@@ -242,6 +303,8 @@ class GateGraphFactory:
             mapping[key_node] = f"{key_node}_{self._id}"
             if mapping[key_node] in graph.nodes:
                 val["weight"] += graph.nodes[mapping[key_node]]["weight"]
+            if "color" not in val:
+                val["color"] = "blue"
             graph.add_node(
                 mapping[key_node], weight=val["weight"], pos=val["pos"], color=val["color"]
             )
@@ -252,32 +315,76 @@ class GateGraphFactory:
                 val["weight"] += graph.edges[new_key_edge]["weight"]
             graph.add_edge(*new_key_edge, weight=val["weight"])
 
+        in_mapping: Dict[str, str] = {}
+        out_mapping: Dict[str, str] = {}
+        for node in self._in_nodes:
+            in_mapping[node] = mapping[node]
+        for node in self._out_nodes:
+            out_mapping[node] = mapping[node]
         self._id += 1
-        return Circuit(mapping, mapping, graph)  # TODO: fix
+        return GateGraph(in_mapping, out_mapping, graph)
 
 
 def generate_graph(
-    circuit: Circuit, connect_func: Callable, scale: tuple = (1, 1), gap: tuple = (0.5, 0.5)
+    circuit_graph: nx.DiGraph,
+    connect_func: Callable[[nx.Graph, str, str], None],
+    gap: Tuple[float, float] = (0.5, 0.5),
 ) -> nx.Graph:
-    graph = nx.Graph()
-    width, height = circuit.pos_map.shape
-    for i in range(width):
-        for j in range(height):
-            node = circuit.pos_map[i][j]
-            if node is not None:
-                buf = circuit._circuit_graph.nodes[hash(node)]["element"]._graph
-                buf = move_graph(buf, (scale[0] * i * (1 + gap[0]), scale[1] * -j * (1 + gap[1])))
-                graph = nx.compose(graph, buf)
+    """keyの値をvalueで固定する. 出力keyのみ設定可能
 
-    for edge in circuit._circuit_graph.edges:
-        in_node = circuit._circuit_graph.edges[edge]["in_node"]
-        out_node = circuit._circuit_graph.edges[edge]["out_node"]
-        connect_func(graph, in_node, out_node)
+    Args:
+        circuit_graph (nx.DiGraph): 回路の接続関係が書かれた有向グラフ
+        connect_func (Callable[[nx.Graph, str, str]]): グラフの二点間を結ぶ関数
+        gap (Tuple[float, float]): ゲートの同士の間隔
+
+    Returns:
+        nx.Graph: 接続関係に基づいて構築された論理回路を表現する無向グラフ
+
+    Examples:
+        >>> import networkx as nx
+        >>> node_dict = {"a": {"weight": 1, "pos": (0, 0)}, "b": {"weight": 1, "pos": (0, 1)}, "s": {"weight": 2, "pos": (1, 1)}}
+        >>> edge_dict={("a", "b"): {"weight": -1}}
+        >>> factory = GateGraphFactory(node_dict, edge_dict, ["a", "b"], ["s"], 0)
+        >>> circuit_graph = nx.DiGraph()
+        >>> circuit_graph.add_node("GT0", gate=factory.generate(), pos=(0, 0))
+        >>> circuit_graph.add_node("GT1", gate=factory.generate(), pos=(0, 1))
+        >>> circuit_graph.add_node("GT2", gate=factory.generate(), pos=(1, 0))
+        >>> circuit_graph.add_node("GT3", gate=factory.generate(), pos=(1, 1))
+        >>> circuit_graph.add_edge("GT0", "GT3", from_key="s", to_key="a")
+        >>> circuit_graph.add_edge("GT1", "GT2", from_key="s", to_key="b")
+        >>> G = generate_graph(circuit_graph, fold)
+        >>> G.nodes(data=True)
+        NodeDataView({
+            "a0": {"weight": 1, "pos": (0, 0)},     "b0": {"weight": 0, "pos": (0, 1)},     "s0": {"weight": 3, "pos": (1, 1)},
+            "a1": {"weight": 1, "pos": (0, 1.5)},   "b1": {"weight": 0, "pos": (0, 2.5)},   "s1": {"weight": 3, "pos": (1, 2.5)},
+            "a2": {"weight": 1, "pos": (1.5, 0)},                                           "s2": {"weight": 2, "pos": (2.5, 1)},
+                                                    "b3": {"weight": 0, "pos": (1.5, 2.5)}, "s3": {"weight": 2, "pos": (2.5, 2.5)},
+        })
+        >>> G.edges(data=True)
+        EdgeDataView({
+            ("a0", "b0"): {"weight": -1}, ("a1", "b1"): {"weight": -1}, ("a2", "s1"): {"weight": -1}, ("s0", "b3"): {"weight": -1},
+        })
+    """
+    graph = nx.Graph()
+
+    for _, data in circuit_graph.nodes(data=True):
+        buf: nx.Graph = data["gate"].get_graph()
+        i = data["pos"][0]
+        j = data["pos"][1]
+        buf = move_graph(buf, (i * (1 + gap[0]), j * (1 + gap[1])))
+        print(buf.nodes(data=True))
+        graph = nx.compose(graph, buf)
+    print(graph.nodes(data=True))
+
+    for from_node, to_node, data in circuit_graph.edges(data=True):
+        from_node = circuit_graph.nodes[from_node]["gate"].get_output(data["from_key"])
+        to_node = circuit_graph.nodes[to_node]["gate"].get_input(data["to_key"])
+        connect_func(graph, from_node, to_node)
 
     return graph
 
 
-def generate_expression(circuit: Circuit, connect_type: str):
+def generate_expression(circuit: GateGraph, connect_type: str):
     width, height = circuit.pos_map.shape
     result = 0
     num_nodes = 0
@@ -320,7 +427,25 @@ def generate_expression(circuit: Circuit, connect_type: str):
     return result
 
 
-def graph_minmax(graph: nx.Graph, param: str) -> tuple[float, float]:
+def graph_param_minmax(graph: nx.Graph, param: str) -> Tuple[float, float]:
+    """graphのparamの最大・最小値を同時に求める
+
+    Args:
+        graph (nx.Graph): 探索対象のグラフ
+        param (str): 探索したいパラメータ
+
+    Returns:
+        min_value (float): 最小値
+        max_value (float): 最大値
+
+    Examples:
+        >>> graph = nx.Graph()
+        >>> graph.add_node("a", weight=0, pos=(0, 0))
+        >>> graph.add_node("b", weight=-2, pos=(0, 1), color="green")
+        >>> graph.add_node("c", weight=5, pos=(1, 0), color="red")
+        >>> graph_param_minmax(graph, "weight")
+        (-2, 5)
+    """
     it = iter(graph.nodes)
     min_value = max_value = graph.nodes[next(it)][param]
 
@@ -334,29 +459,17 @@ def graph_minmax(graph: nx.Graph, param: str) -> tuple[float, float]:
     return min_value, max_value
 
 
-def lock_value(graph: nx.Graph, node: Any, value: float) -> nx.Graph:
-    for neighbor in graph.neighbors(node):
-        graph.edges[node, neighbor]["weight"] *= value
+def edge(graph: nx.Graph, from_node: Any, to_node: Any) -> nx.Graph:
+    """graphのfrom_nodeとto_nodeを重み-1で接続する
 
-    graph.remove_node(node)
-
-    return graph
-
-
-def all_lock(graph: nx.Graph):
-    for node in list(graph.nodes):
-        if "value" in graph.nodes[node]:
-            graph = lock_value(graph, node, graph.nodes[node]["value"])
-
-    return graph
-
-
-def edge(graph: nx.Graph, in_node: Any, out_node: Any) -> nx.Graph:
-    graph.add_edge(in_node, out_node, weight=-1)
+    2つのGateグラフがgraph上に配置されているとき、2つのGateグラフをつなぐ辺の重みは-1で十分である。
+    """
+    graph.add_edge(from_node, to_node, weight=-1)
     return graph
 
 
 def fold(graph: nx.Graph, fold_node: Any, folded_node: Any) -> nx.Graph:
+    """graphのfrom_nodeとto_nodeを1つの頂点に圧縮する"""
     graph.nodes[fold_node]["weight"] += graph.nodes[folded_node]["weight"]
     for n in nx.all_neighbors(graph, folded_node):
         graph.add_edge(fold_node, n, weight=graph[folded_node][n]["weight"])
@@ -365,14 +478,35 @@ def fold(graph: nx.Graph, fold_node: Any, folded_node: Any) -> nx.Graph:
 
 
 def move_graph(graph: nx.Graph, displacement: Tuple[float, float]) -> nx.Graph:
+    """graphを並行移動する
+
+    Args:
+        graph (nx.Graph): 移動したいグラフ
+        displacement (Tuple[float, float]): 移動距離
+
+    Returns:
+        graph (nx.Graph): 移動後のグラフ
+    """
     for node in graph.nodes:
-        graph.nodes[node]["pos"][0] += displacement[0]
-        graph.nodes[node]["pos"][1] += displacement[1]
+        i = graph.nodes[node]["pos"][0]
+        i += displacement[0]
+        j = graph.nodes[node]["pos"][1]
+        j += displacement[1]
+        graph.nodes[node]["pos"] = (i, j)
 
     return graph
 
 
-def scale_graph(graph: nx.Graph, scale: tuple[float, float]) -> nx.Graph:
+def scale_graph(graph: nx.Graph, scale: Tuple[float, float]) -> nx.Graph:
+    """graphを拡大・縮小する
+
+    Args:
+        graph (nx.Graph): 拡大・縮小したいグラフ
+        scale (Tuple[float, float]): x, y方向の拡大率・縮小率
+
+    Returns:
+        graph (nx.Graph): 拡大・縮小後のグラフ
+    """
     for node in graph.nodes:
         graph.nodes[node]["pos"][0] *= scale[0]
         graph.nodes[node]["pos"][1] *= scale[1]
@@ -381,6 +515,15 @@ def scale_graph(graph: nx.Graph, scale: tuple[float, float]) -> nx.Graph:
 
 
 def rotate_graph(graph: nx.Graph, degree: float) -> nx.Graph:
+    """graphを回転する
+
+    Args:
+        graph (nx.Graph): 回転したいグラフ
+        degree (float): 角度(rad)
+
+    Returns:
+        graph (nx.Graph): 回転後のグラフ
+    """
     for node in graph.nodes:
         x = graph.nodes[node]["pos"][0]
         y = graph.nodes[node]["pos"][1]
@@ -391,7 +534,43 @@ def rotate_graph(graph: nx.Graph, degree: float) -> nx.Graph:
     return graph
 
 
-def collect_layout(graph: nx.Graph) -> dict:
+def collect_labels(graph: nx.Graph) -> Dict[str, str]:
+    """graphのlabel情報を収集しnode_labelに変換する"""
+    labels = {}
+    for node, data in graph.nodes(data=True):
+        labels[node] = data["labels"]
+
+    return labels
+
+
+def collect_node_weight(graph: nx.Graph) -> List[float]:
+    """graphの頂点の重み絶対値を収集しnode_labelに変換する"""
+    return [abs(data["weight"]) for _, data in graph.nodes(data=True)]
+
+
+def collect_edge_weight(graph: nx.Graph) -> List[float]:
+    """graphの辺の重み絶対値を収集しedge_labelに変換する"""
+    return [abs(data["weight"]) for _, _, data in graph.edges(data=True)]
+
+
+def collect_layout(graph: nx.Graph) -> Dict[str, Tuple[int, int]]:
+    """graphのpos情報を収集しlayoutに変換する
+
+    Args:
+        graph (nx.Graph): 入力グラフ
+
+    Returns:
+        dict: {node: (x, y)}
+
+    Examples:
+        >>> graph = nx.Graph()
+        >>> graph.add_node("a", weight=0, pos=(0, 0))
+        >>> graph.add_node("b", weight=0, pos=(0, 1), color="green")
+        >>> graph.add_node("c", weight=0, pos=(1, 0), color="red")
+        >>> pos = collect_layout(graph)
+        {"a": (0, 0), "b": (0, 1), "c": (1, 0)}
+        >>> nx.draw_networkx(graph, pos=pos)
+    """
     pos = {}
     for node, data in graph.nodes(data=True):
         try:
@@ -401,7 +580,27 @@ def collect_layout(graph: nx.Graph) -> dict:
     return pos
 
 
-def collect_color(graph: nx.Graph) -> list:
+def collect_color(graph: nx.Graph) -> List[str]:
+    """graphのcolor情報を収集しnode_colorに変換する
+
+    Args:
+        graph (nx.Graph): 入力グラフ
+
+    Returns:
+        List[str]: ノードの色リスト
+
+    Examples:
+        >>> import networkx as nx
+        >>> import matplotlib.pyplot as plt
+        >>> graph = nx.Graph()
+        >>> graph.add_node("a", weight=0, pos=(0, 0))
+        >>> graph.add_node("b", weight=0, pos=(0, 1), color="green")
+        >>> graph.add_node("c", weight=0, pos=(1, 0), color="red")
+        >>> node_color = collect_layout(graph)
+        ["blue", "green", "red"]
+        >>> nx.draw_networkx(graph, node_color=node_color)
+        >>> plt.show()
+    """
     pos = []
     for _, data in graph.nodes(data=True):
         try:
@@ -412,9 +611,35 @@ def collect_color(graph: nx.Graph) -> list:
     return pos
 
 
-def node_weight_gradation(graph: nx.Graph, value: int, minus_color: int, plus_color: int) -> list:
-    minus_colors = fix_gradation(minus_color, value + 1)
-    plus_colors = fix_gradation(plus_color, value + 1)
+# TODO: remove value parameter
+def node_weight_gradation(
+    graph: nx.Graph, value: int, minus_color: int | str, plus_color: int | str
+) -> List[int]:
+    """graphのweight情報をもとにnode_colorを生成する
+
+    Args:
+        graph (nx.Graph): 入力グラフ
+        value (int): 色の分割数. valueはすべての重みの総数にしてください
+        minus_color (int | str): 最大絶対値の負数の色
+        minus_color (int | str): 最大絶対値の正数の色
+
+    Returns:
+        List[int]: ノードの色リスト
+
+    Examples:
+        >>> import networkx as nx
+        >>> import matplotlib.pyplot as plt
+        >>> graph = nx.Graph()
+        >>> graph.add_node("a", weight=0, pos=(0, 0))
+        >>> graph.add_node("b", weight=-2, pos=(0, 1), color="green")
+        >>> graph.add_node("c", weight=5, pos=(1, 0), color="red")
+        >>> node_color = node_weight_gradation(graph, minus_color="blue", plus_color="red")
+        ["blue", "green", "red"]
+        >>> nx.draw_networkx(graph, node_color=node_color)
+        >>> plt.show()
+    """
+    minus_colors = _fix_gradation(minus_color, value + 1)
+    plus_colors = _fix_gradation(plus_color, value + 1)
 
     result = []
     for node in graph.nodes:
@@ -427,7 +652,7 @@ def node_weight_gradation(graph: nx.Graph, value: int, minus_color: int, plus_co
     return result
 
 
-def fix_gradation(start_color: int, length: int) -> list:
+def _fix_gradation(start_color: int | str, length: int) -> List[int]:
     rgb = matplotlib.colors.to_rgb(start_color)
     hsv = matplotlib.colors.rgb_to_hsv(rgb)
     hsv[1] = 1
@@ -439,22 +664,6 @@ def fix_gradation(start_color: int, length: int) -> list:
         result.append(matplotlib.colors.hsv_to_rgb(hsv))
 
     return result
-
-
-def collect_labels(graph: nx.Graph) -> dict:
-    labels = {}
-    for node, data in graph.nodes(data=True):
-        labels[node] = data["labels"]
-
-    return labels
-
-
-def collect_node_weight(graph: nx.Graph) -> list[float]:
-    return [abs(data["weight"]) for _, data in graph.nodes(data=True)]
-
-
-def collect_edge_weight(graph: nx.Graph) -> list[float]:
-    return [abs(data["weight"]) for _, _, data in graph.edges(data=True)]
 
 
 def convert_graph_to_expression(graph: nx.Graph, variables: dict) -> Any:
