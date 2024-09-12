@@ -22,173 +22,56 @@ class GateGraph:
         self._graph = graph
         self._offset = offset
 
-    @staticmethod
+    @classmethod
     def from_circuit(
+        cls,
         circuit: nx.DiGraph,
     ) -> "GateGraph":
         graph, offset = generate_graph(circuit, fold)
-        return GateGraph(graph, offset)
+        return cls(graph, offset)
 
-    def get_graph(self: "GateGraph") -> nx.Graph:
-        """内部graphを出力する
-
-        Args:
-
-        Returns:
-            nx.Graph: 内部状態graphを出力する
-        """
-        return self._graph
-
-    def get_offset(self: "GateGraph") -> int | float:
-        """内部offsetを出力する
-
-        Args:
-
-        Returns:
-            nx.Graph: 内部状態offsetを出力する
-        """
-        return self._offset
-
-    def bind(self: "GateGraph", key: str, value: int) -> None:
-        """keyの値をvalueで固定する. 入力keyのみ設定可能
-
-        Args:
-            key (str): 入力するキー
-            value (int): 固定したい値
-
-        Returns:
-            None: 内部状態graphのkeyに対応する値をvalueで固定する. 戻り値はNone
-
-        Examples:
-            >>> G = nx.Graph({"a0": {"weight": 0}, "b0": {"weight": 0}, "s0": {"weight": 0}})
-            >>> gate = Gate({"a": "a0", "b": "b0"}, {"s": "s0"}, G)
-            >>> gate.set_value("a", 4)
-            >>> print(circuit.get_graph)
-            nx.Graph({"a0": {"weight": 0, "value": 4}, "b0": {"weight": 0}, "s0": {"weight": 0}})
-        """
-        try:
-            self._graph.nodes[key]["value"] = value
-        except KeyError as e:
-            print(f"current graph: {self._graph.nodes}")
-            raise e
-
-    # class Circuit:
-    #     def __init__(self: "Circuit"):
-    #         self.nodes: dict[str, str] = {}
-    #         self.elems: dict[str, Element] = {}
-    #         self._variable_funcs: dict[Element, Callable] = {}
-    #
-    #     def get_variable_dict(self, gen):
-    #         return {elm: func(gen) for elm, func in self._variable_funcs.items()}
-    #
-    #     def expression(self, variables: dict):
-    #         for edge in self._circuit_graph.edges:
-    #             in_element = self._circuit_graph.nodes[edge[0]]["element"]
-    #             out_element = self._circuit_graph.nodes[edge[1]]["element"]
-    #             in_node = self._circuit_graph.edges[edge]["in_node"]
-    #             out_node = self._circuit_graph.edges[edge]["out_node"]
-    #             if out_element not in variables:
-    #                 print(f"key lengths: {len(variables.keys())}")
-    #                 raise KeyError(f"variables has no attribute out_element {out_element}")
-    #             elif in_element not in variables:
-    #                 print(f"key lengths: {len(variables.keys())}")
-    #                 raise KeyError(f"variables has no attribute in_element {in_element}")
-    #             variables[out_element][out_node] = variables[in_element][in_node]
-    #
-    #         expr = 0
-    #         for node in self._circuit_graph.nodes:
-    #             element = self._circuit_graph.nodes[node]["element"]
-    #             buf = element.expression(variables[element])
-    #             # print(variables[element])
-    #             # print(buf)
-    #             expr += buf
-    #
-    #         return expr
-    #
-    #     def add_circuit(self, circuit: "Circuit", base: tuple):
-    #         self._circuit_graph = nx.compose(self._circuit_graph, circuit._circuit_graph)
-    #         self._variable_funcs.update(circuit._variable_funcs)
-    #         width, height = circuit.pos_map.shape
-    #         for i in range(width):
-    #             for j in range(height):
-    #                 self.pos_map[i + base[0]][j + base[1]] = circuit.pos_map[i][j]
-    #
-    #     def save_to_nodes(self, element, mapping: dict):
-    #         if isinstance(element, Element):
-    #             for key, before in mapping.items():
-    #                 self.nodes[key] = element.nodes[before]
-    #                 self.elems[key] = element
-    #         elif isinstance(element, Circuit):
-    #             for key, before in mapping.items():
-    #                 self.nodes[key] = element.nodes[before]
-    #                 self.elems[key] = element.elems[before]
-    #         else:
-    #             raise ValueError
-    #
-    #     def append_input_element(self, element: Element):
-    #         root = hash(element)
-    #         self._circuit_graph.add_node(root, element=element)
-    #         self._variable_funcs[element] = element.get_variable_dict
-    #
-    #     def connect(self, in_element: Element, out_element: Element, in_node: str, out_node: str):
-    #         in_hash = hash(in_element)
-    #         out_hash = hash(out_element)
-    #         if in_hash not in self._circuit_graph:
-    #             self._circuit_graph.add_node(in_hash, element=in_element)
-    #             self._variable_funcs[in_element] = in_element.get_variable_dict
-    #         if out_hash not in self._circuit_graph:
-    #             self._circuit_graph.add_node(out_hash, element=out_element)
-    #             self._variable_funcs[out_element] = out_element.get_variable_dict
-    #         self._circuit_graph.add_edge(in_hash, out_hash, in_node=in_node, out_node=out_node)
-    #
-    #     def connects_from(
-    #         self,
-    #         in_circuit: "Circuit",
-    #         out_circuit: "Circuit",
-    #         in_nodes: list[str],
-    #         out_nodes: list[str],
-    #     ):
-    #         for in_node, out_node in zip(in_nodes, out_nodes):
-    #             in_element = in_circuit.elems[in_node]
-    #             in_node = in_circuit.nodes[in_node]
-    #             out_element = out_circuit.elems[out_node]
-    #             out_node = out_circuit.nodes[out_node]
-    #             self.connect(
-    #                 out_element,
-    #                 in_element,
-    #                 out_node,
-    #                 in_node,
-    #             )
-    #
-    #     def rot90(self, k: int = 1):
-    #         self.pos_map = np.rot90(self.pos_map, k, axes=(1, 0))
-    #
-
-
-class GateGraphFactory:
-    """論理ゲート用Ising/QUBOモデルのファクトリクラス
-
-    GateGraphをidによってナンバリングすることで同一のキーを持つグラフの生成を抑制する
-    """
-
-    def __init__(
-        self: "GateGraphFactory",
+    @classmethod
+    def from_dict(
+        cls,
         node_dict: Dict[str, Dict[str, Any]],
         edge_dict: Dict[Tuple[str, str], Dict[str, Any]],
         in_nodes: List[str],
         out_nodes: List[str],
         offset: int | float,
     ):
-        self._node_dict = node_dict
-        self._edge_dict = edge_dict
-        self._in_nodes = in_nodes
-        self._out_nodes = out_nodes
-        self._offset = offset
+        """
+        dict形式で書かれた情報からGateGraphインスタンスを生成する
+        """
+        graph = nx.Graph()
+        mapping: Dict[str, str] = {}
+        for key_node, val in node_dict.items():
+            mapping[key_node] = key_node
+            if mapping[key_node] in graph.nodes:
+                val["weight"] += graph.nodes[mapping[key_node]]["weight"]
+            if "color" not in val:
+                val["color"] = "blue"
+            graph.add_node(
+                mapping[key_node], weight=val["weight"], pos=val["pos"], color=val["color"]
+            )
 
-    @staticmethod
+        for key_edge, val in edge_dict.items():
+            new_key_edge = mapping[key_edge[0]], mapping[key_edge[1]]
+            if new_key_edge in graph.edges:
+                val["weight"] += graph.edges[new_key_edge]["weight"]
+            graph.add_edge(*new_key_edge, weight=val["weight"])
+
+        in_mapping: Dict[str, str] = {}
+        out_mapping: Dict[str, str] = {}
+        for node in in_nodes:
+            in_mapping[node] = mapping[node]
+        for node in out_nodes:
+            out_mapping[node] = mapping[node]
+        return cls(graph, offset)
+
+    @classmethod
     def from_poly(
-        poly: amplify.Poly, in_vars: List[amplify.Variable], out_vars: List[amplify.Variable]
-    ) -> "GateGraphFactory":
+        cls, poly: amplify.Poly, in_vars: List[amplify.Variable], out_vars: List[amplify.Variable]
+    ) -> "GateGraph":
         """Amplify.Polyによる二次式に基づいたファクトリ生成
 
         Examples:
@@ -238,12 +121,13 @@ class GateGraphFactory:
             node_dict[key] = val
         in_nodes = [var.name for var in in_vars]
         out_nodes = [var.name for var in out_vars]
-        return GateGraphFactory(node_dict, edge_dict, in_nodes, out_nodes, offset)
+        return cls.from_dict(node_dict, edge_dict, in_nodes, out_nodes, offset)
 
-    @staticmethod
-    def symbol_factory(
+    @classmethod
+    def symbol(
+        cls,
         var: amplify.Variable,
-    ) -> "GateGraphFactory":
+    ) -> "GateGraph":
         """頂点生成用のファクトリ
 
         Examples:
@@ -262,37 +146,50 @@ class GateGraphFactory:
         }
         in_nodes = [var.name]
         out_nodes = [var.name]
-        return GateGraphFactory(node_dict, edge_dict, in_nodes, out_nodes, offset)
+        return cls.from_dict(node_dict, edge_dict, in_nodes, out_nodes, offset)
 
-    def generate(self: "GateGraphFactory") -> GateGraph:
+    def get_graph(self: "GateGraph") -> nx.Graph:
+        """内部graphを出力する
+
+        Args:
+
+        Returns:
+            nx.Graph: 内部状態graphを出力する
         """
-        __init__で与えられた情報からGateGraphインスタンスを生成する
+        return self._graph
+
+    def get_offset(self: "GateGraph") -> int | float:
+        """内部offsetを出力する
+
+        Args:
+
+        Returns:
+            nx.Graph: 内部状態offsetを出力する
         """
-        graph = nx.Graph()
-        mapping: Dict[str, str] = {}
-        for key_node, val in self._node_dict.items():
-            mapping[key_node] = key_node
-            if mapping[key_node] in graph.nodes:
-                val["weight"] += graph.nodes[mapping[key_node]]["weight"]
-            if "color" not in val:
-                val["color"] = "blue"
-            graph.add_node(
-                mapping[key_node], weight=val["weight"], pos=val["pos"], color=val["color"]
-            )
+        return self._offset
 
-        for key_edge, val in self._edge_dict.items():
-            new_key_edge = mapping[key_edge[0]], mapping[key_edge[1]]
-            if new_key_edge in graph.edges:
-                val["weight"] += graph.edges[new_key_edge]["weight"]
-            graph.add_edge(*new_key_edge, weight=val["weight"])
+    def bind(self: "GateGraph", key: str, value: int) -> None:
+        """keyの値をvalueで固定する. 入力keyのみ設定可能
 
-        in_mapping: Dict[str, str] = {}
-        out_mapping: Dict[str, str] = {}
-        for node in self._in_nodes:
-            in_mapping[node] = mapping[node]
-        for node in self._out_nodes:
-            out_mapping[node] = mapping[node]
-        return GateGraph(graph, self._offset)
+        Args:
+            key (str): 入力するキー
+            value (int): 固定したい値
+
+        Returns:
+            None: 内部状態graphのkeyに対応する値をvalueで固定する. 戻り値はNone
+
+        Examples:
+            >>> G = nx.Graph({"a0": {"weight": 0}, "b0": {"weight": 0}, "s0": {"weight": 0}})
+            >>> gate = Gate({"a": "a0", "b": "b0"}, {"s": "s0"}, G)
+            >>> gate.set_value("a", 4)
+            >>> print(circuit.get_graph)
+            nx.Graph({"a0": {"weight": 0, "value": 4}, "b0": {"weight": 0}, "s0": {"weight": 0}})
+        """
+        try:
+            self._graph.nodes[key]["value"] = value
+        except KeyError as e:
+            print(f"current graph: {self._graph.nodes}")
+            raise e
 
 
 def generate_graph(
