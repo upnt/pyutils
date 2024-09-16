@@ -80,6 +80,7 @@ class Circuit:
                 raise KeyError(f"variables has no attribute in_element {in_element}")
             variables[out_element][out_node] = variables[in_element][in_node]
 
+        # pprint(variables)
         expr = 0
         for node in self._circuit_graph.nodes:
             element = self._circuit_graph.nodes[node]["element"]
@@ -88,6 +89,7 @@ class Circuit:
             # print(buf)
             expr += buf
 
+        # pprint(variables)
         return expr
 
     def add_circuit(self, circuit: "Circuit", base: tuple):
