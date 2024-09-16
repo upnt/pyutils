@@ -1,4 +1,3 @@
-import abc
 import math
 from collections import Counter, defaultdict
 from typing import Any, Callable, Dict, List, Tuple
@@ -35,8 +34,6 @@ class GateGraph:
         cls,
         node_dict: Dict[str, Dict[str, Any]],
         edge_dict: Dict[Tuple[str, str], Dict[str, Any]],
-        in_nodes: List[str],
-        out_nodes: List[str],
         offset: int | float,
     ):
         """
@@ -60,17 +57,12 @@ class GateGraph:
                 val["weight"] += graph.edges[new_key_edge]["weight"]
             graph.add_edge(*new_key_edge, weight=val["weight"])
 
-        in_mapping: Dict[str, str] = {}
-        out_mapping: Dict[str, str] = {}
-        for node in in_nodes:
-            in_mapping[node] = mapping[node]
-        for node in out_nodes:
-            out_mapping[node] = mapping[node]
         return cls(graph, offset)
 
     @classmethod
     def from_poly(
-        cls, poly: amplify.Poly, in_vars: List[amplify.Variable], out_vars: List[amplify.Variable]
+        cls,
+        poly: amplify.Poly,
     ) -> "GateGraph":
         """Amplify.Polyによる二次式に基づいたファクトリ生成
 
@@ -118,9 +110,7 @@ class GateGraph:
         for pos, (key, val) in zip(pos_list, node_dict.items()):
             val["pos"] = pos
             node_dict[key] = val
-        in_nodes = [var.name for var in in_vars]
-        out_nodes = [var.name for var in out_vars]
-        return cls.from_dict(node_dict, edge_dict, in_nodes, out_nodes, offset)
+        return cls.from_dict(node_dict, edge_dict, offset)
 
     @classmethod
     def symbol(
@@ -142,9 +132,7 @@ class GateGraph:
             "pos": [0, 0],
             "color": "blue",
         }
-        in_nodes = [var.name]
-        out_nodes = [var.name]
-        return cls.from_dict(node_dict, edge_dict, in_nodes, out_nodes, offset)
+        return cls.from_dict(node_dict, edge_dict, offset)
 
     def get_graph(self: "GateGraph") -> nx.Graph:
         """内部graphを出力する
