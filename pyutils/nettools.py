@@ -81,8 +81,7 @@ class GateGraph:
             >>> z = gen.scalar("Binary", name="z")
             >>> s = gen.scalar("Binary", name="s")
             >>> poly = x * y + x * z + y * z - 2 * s * (x + y + z) + 3
-            >>> factory = GateGraphFactory.from_poly(poly, [x, y, z], [s])
-            >>> gate = factory.generate()
+            >>> gate = GateGraph.from_poly(poly, [x, y, z], [s])
         """
         if poly.degree() > 2:
             raise ValueError(f"The degree of poly is higher than 2 (degree: {poly.degree()})")
@@ -133,8 +132,7 @@ class GateGraph:
         Examples:
             >>> gen = VariableGenerator()
             >>> x = gen.scalar("Binary", name="x")
-            >>> factory = GateGraphFactory.symbol_factory(x)
-            >>> gate = factory.generate()
+            >>> gate = GateGraph.symbol_factory(x)
         """
         node_dict: Dict[str, Dict[str, Any]] = {}
         edge_dict: Dict[Tuple[str, str], Dict[str, Any]] = {}
@@ -212,12 +210,12 @@ def generate_graph(
         >>> import networkx as nx
         >>> node_dict = {"a": {"weight": 1, "pos": (0, 0)}, "b": {"weight": 1, "pos": (0, 1)}, "s": {"weight": 2, "pos": (1, 1)}}
         >>> edge_dict={("a", "b"): {"weight": -1}}
-        >>> factory = GateGraphFactory(node_dict, edge_dict, ["a", "b"], ["s"], 4)
+        >>> gate = GateGraph(node_dict, edge_dict, ["a", "b"], ["s"], 4)
         >>> circuit_graph = nx.DiGraph()
-        >>> circuit_graph.add_node("GT0", gate=factory.generate(), pos=(0, 0))
-        >>> circuit_graph.add_node("GT1", gate=factory.generate(), pos=(0, 1))
-        >>> circuit_graph.add_node("GT2", gate=factory.generate(), pos=(1, 0))
-        >>> circuit_graph.add_node("GT3", gate=factory.generate(), pos=(1, 1))
+        >>> circuit_graph.add_node("GT0", gate=copy(gate), pos=(0, 0))
+        >>> circuit_graph.add_node("GT1", gate=copy(gate), pos=(0, 1))
+        >>> circuit_graph.add_node("GT2", gate=copy(gate), pos=(1, 0))
+        >>> circuit_graph.add_node("GT3", gate=copy(gate), pos=(1, 1))
         >>> circuit_graph.add_edge("GT0", "GT3", from_key="s", to_key="a")
         >>> circuit_graph.add_edge("GT1", "GT2", from_key="s", to_key="b")
         >>> G, offset = generate_graph(circuit_graph, fold)
@@ -277,12 +275,12 @@ def generate_expression(
         >>> import networkx as nx
         >>> node_dict = {"a": {"weight": 1, "pos": (0, 0)}, "b": {"weight": 1, "pos": (0, 1)}, "s": {"weight": 2, "pos": (1, 1)}}
         >>> edge_dict={("a", "b"): {"weight": -1}}
-        >>> factory = GateGraphFactory(node_dict, edge_dict, ["a", "b"], ["s"], 0)
+        >>> gate = GateGraph(node_dict, edge_dict, ["a", "b"], ["s"], 0)
         >>> circuit_graph = nx.DiGraph()
-        >>> circuit_graph.add_node("GT0", gate=factory.generate(), pos=(0, 0))
-        >>> circuit_graph.add_node("GT1", gate=factory.generate(), pos=(0, 1))
-        >>> circuit_graph.add_node("GT2", gate=factory.generate(), pos=(1, 0))
-        >>> circuit_graph.add_node("GT3", gate=factory.generate(), pos=(1, 1))
+        >>> circuit_graph.add_node("GT0", gate=copy(gate), pos=(0, 0))
+        >>> circuit_graph.add_node("GT1", gate=copy(gate), pos=(0, 1))
+        >>> circuit_graph.add_node("GT2", gate=copy(gate), pos=(1, 0))
+        >>> circuit_graph.add_node("GT3", gate=copy(gate), pos=(1, 1))
         >>> circuit_graph.add_edge("GT0", "GT3", from_key="s", to_key="a")
         >>> circuit_graph.add_edge("GT1", "GT2", from_key="s", to_key="b")
         >>> G = generate_graph(circuit_graph, fold)
