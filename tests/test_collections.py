@@ -1,4 +1,4 @@
-from pyutils.collections import nddict
+from pyutils.mycollections import nddict
 import numpy as np
 import itertools as itools
 

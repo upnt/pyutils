@@ -1,6 +1,6 @@
 import io
 import pytest
-from pyutils.io import default_input, candidate_input
+from pyutils.myio import default_input, candidate_input
 def test_default_input01(capsys, monkeypatch):
     monkeypatch.setattr('sys.stdin', io.StringIO("\n"))
     vals = default_input("> ", [9, 10, 11, 12])
