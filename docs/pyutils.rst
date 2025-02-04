@@ -4,13 +4,29 @@ pyutils package
 Submodules
 ----------
 
-.. toctree::
-   :maxdepth: 4
+pyutils.mycollections module
+----------------------------
 
-   pyutils.mycollections
-   pyutils.myio
-   pyutils.myitertools
-   pyutils.nettools
+.. automodule:: pyutils.mycollections
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyutils.myio module
+-------------------
+
+.. automodule:: pyutils.myio
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyutils.myitertools module
+--------------------------
+
+.. automodule:: pyutils.myitertools
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 Module contents
 ---------------
